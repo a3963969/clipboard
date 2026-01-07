@@ -8,6 +8,7 @@ Mac 截图监控服务
 import os
 import re
 import subprocess
+import sys
 import time
 import hashlib
 from pathlib import Path
@@ -19,6 +20,51 @@ try:
     HAS_APPKIT = True
 except ImportError:
     HAS_APPKIT = False
+
+
+def check_permissions():
+    """检查必要的系统权限"""
+    issues = []
+
+    # 检查辅助功能权限
+    try:
+        result = subprocess.run(
+            ["osascript", "-e",
+             'tell application "System Events" to get name of first application process whose frontmost is true'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode != 0:
+            issues.append("辅助功能权限")
+    except Exception:
+        issues.append("辅助功能权限")
+
+    return issues
+
+
+def print_permission_help(issues):
+    """打印权限帮助信息"""
+    print("=" * 50)
+    print("  权限不足，需要授予以下权限:")
+    print("=" * 50)
+    for issue in issues:
+        print(f"  • {issue}")
+    print()
+    print("请按以下步骤操作:")
+    print()
+    print("1. 打开「系统设置」→「隐私与安全性」")
+    print()
+    if "辅助功能权限" in issues:
+        print("2. 点击「辅助功能」")
+        print("   - 点击 + 号")
+        print("   - 添加 /usr/bin/python3 或「终端」应用")
+        print()
+    print("3. 授权后重新运行安装脚本")
+    print()
+    print("快速打开设置:")
+    print("  open 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'")
+    print("=" * 50)
 
 # Cursor 应用名称
 CURSOR_APP_NAME = "Cursor"
@@ -260,9 +306,28 @@ class ScreenshotMonitor:
 
 
 if __name__ == "__main__":
+    # 检查 pyobjc 依赖
     if not HAS_APPKIT:
-        print("提示: 安装 pyobjc 以启用剪贴板监控功能")
-        print("运行: pip3 install pyobjc-framework-Cocoa")
+        print("=" * 50)
+        print("  缺少依赖: pyobjc-framework-Cocoa")
+        print("=" * 50)
+        print()
+        print("剪贴板监控功能需要此依赖，请运行:")
+        print("  pip3 install pyobjc-framework-Cocoa")
+        print()
+        print("或重新运行安装脚本自动安装:")
+        print("  ./install.sh")
+        print("=" * 50)
+        print()
+        print("将以基础模式运行（仅监控截图文件）...")
+        print()
+
+    # 检查系统权限
+    permission_issues = check_permissions()
+    if permission_issues:
+        print_permission_help(permission_issues)
+        print()
+        print("将尝试继续运行，但部分功能可能受限...")
         print()
 
     monitor = ScreenshotMonitor()
